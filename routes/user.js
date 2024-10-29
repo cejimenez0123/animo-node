@@ -24,11 +24,25 @@ router.get("/",async (req, res)=>{
   res.json({message:e.message})
 }
 })
-router.get("/user",authMiddleware,async (req, res) => {
+router.get("/",authMiddleware,async (req, res) => {
   res.json({user:req.user})
 })
+router.put("/",authMiddleware,async (req,res)=>{
+
+  const {preferredName,relationshipStatus,sedentaryLevel,workStatus,dob}=req.body
+  const user = prisma.user.update({where:{
+    id:req.user.id
+  },data:{
+    preferredName:preferredName,
+    relationshipStatus:relationshipStatus,
+    workStatus:workStatus,
+    sedentaryLevel:sedentaryLevel,
+    dob:dob
+  }})
+  res.json({user})
+})
 router.post('/register', async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password} = req.body;
   
     try {
       // Validate input and ensure uniqueness
@@ -49,8 +63,6 @@ router.post('/register', async (req, res) => {
         data: { email, password: hashedPassword },
       });
   
-      // Optionally generate a JWT token (avoid storing full credentials in token)
-      // and send it as a response (not in body for security)
       const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '23h' });
   
       res.status(201).json({ message: 'User registered successfully', token }); // Securely send token in header
@@ -58,18 +70,25 @@ router.post('/register', async (req, res) => {
       console.error(error); // Log error for debugging
       res.status(500).json({ message: 'Registration failed' });
     }
-  });
+});
+router.get("/:id/task",authMiddleware,async(req,res)=>{
 
+  let tasks = prisma.task.findMany({where:{
+    user:{
+      id:{
+        equals:req.user.id
+      }
+    }
+  }})
+  res.json({tasks})
+})
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
-  
     try {
-
-      const user = await prisma.user.findUnique({ where: { email:email.toLowerCase() } });
-  
-      if (!user || !bcrypt.compareSync(password, user.password)) {
-        return res.status(401).json({ message: 'Invalid email or password' });
-      }
+         const user = await prisma.user.findUnique({ where: { email:email.toLowerCase() } });
+        if (!user || !bcrypt.compareSync(password, user.password)) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
             const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '2d' });
             res.json({ token });
         } catch (error) {
