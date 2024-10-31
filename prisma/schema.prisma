@@ -34,7 +34,8 @@ model Task {
     description String? @default("")
     priority Int?
     complexity Int?
-    timeOfEvent DateTime?
+    startTime DateTime?
+    endTime DateTime?
     dueDate DateTime?
     completionDate DateTime? 
     place Place? @default(home)
@@ -63,7 +64,7 @@ model Equipment {
   created DateTime? @default(now())
 }
 enum WorkStatus {
-  working
+  fulltime
   student
   selfemployed
   unemployed
