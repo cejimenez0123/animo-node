@@ -27,7 +27,24 @@ module.exports = function(authMiddleware){
 // }
 // })
 router.get("/",authMiddleware,async (req, res) => {
-  res.json({user:req.user})
+  try{
+      const token = req.headers.authorization.split(" ")[1]
+      jwt.verify(token, process.env.JWT_SECRET, function(err, decoded) {
+        if (err) {
+          
+         res.status(401).json({   name: 'TokenExpiredError',
+         message: 'jwt expired'})
+        }else{
+          res.status(200).json({   
+            name: 'TokenSuccess',
+            message: 'Token Acitive',
+          user:req.user})
+        }
+      })
+    }catch(e){
+      res.json({message:e.message})
+    }
+  
 })
 router.put("/",authMiddleware,async (req,res)=>{
 
@@ -35,10 +52,6 @@ router.put("/",authMiddleware,async (req,res)=>{
   const work = WorkStatusTypeCheck(workStatus)
   const level = SedentaryCheck(sedentaryLevel)
   const date = new Date(dob)
-
-  // Format the date object according to the desired output format
-  
-
   const user = await prisma.user.update({where:{
     id:req.user.id
   },data:{

@@ -9,8 +9,30 @@ const router = express.Router()
 module.exports = function(authMiddleware){
 
         router.post("/",authMiddleware, async (req,res)=>{
-            const { name,link,description,priority,timeOfEvent,completionDate,complexity,dueDate,place,isLowFocus,isWork}= req.body
-
+            const { name,
+                description,
+                link,
+                parentId,
+                priority,
+                complexity,
+                startTime,
+                endTime,
+                dueDate,
+                isLowFocus,
+                isWork,
+                }
+            = req.body
+            let parentTask 
+            if(isLowFocus==true && isWork==true){
+                parentTask= await prisma.task.findFirst({where:"Work"})
+            }else if(isLowFocus==false &&isWork==false){
+                parentTask= await prisma.task.findFirst({where:"Relax"})
+            }else if(isWork==false&&isLowFocus==true){
+                parentTask= await prisma.task.findFirst({where:"Relax"})
+            }else if(isWork==true&&isLowFocus==false){
+                parentTask= await prisma.task.findFirst({where:"Work"})
+            }
+    
            let task = await prisma.task.create({data:{
                 name:name,
                 link:link,
@@ -19,10 +41,11 @@ module.exports = function(authMiddleware){
                 timeOfEvent:timeOfEvent,
                 completionDate:completionDate,
                 complexity:complexity,
+                startTime:startTime,
+                endTime:endTime,
                 dueDate:dueDate,
-                place:place,
                 isLowFocus:isLowFocus,
-                isWork
+                isWork:isWork
                 
             }})
             res.json({task})
@@ -52,16 +75,17 @@ module.exports = function(authMiddleware){
             res.json({tasks:[doNothing,relax,work]})
         })
     
-        router.get("/:id/energy/:eng/mode/:mode",async (req,res)=>{
+        router.get("/:id/energy/:eng/mode/:mode/public",async (req,res)=>{
             let isLowFocus = true
             let isWork = false
+           
             if(req.params.eng.toLowerCase().includes("high")){
                 isLowFocus=false
             }
             if(req.params.mode.toLowerCase().includes("work")){
                 isWork=true
             }
-            let tasks = await prisma.task.findMany({where:{
+            let tasks = await prisma.task.findMany({take:4,where:{
                 AND:{
                     parent:{
                         id:{
@@ -70,11 +94,11 @@ module.exports = function(authMiddleware){
                     },
                     isLowFocus:isLowFocus,
                     isWork:isWork,
-                    user:{
-                        id:{
-                            equals:null
-                        }
-                    }
+                    OR: [
+                        { userId: null },
+                        { userId: { isSet: false } }
+                      ]
+                  
                 }
             }})
             console.log(tasks)
@@ -90,27 +114,37 @@ module.exports = function(authMiddleware){
             if(req.params.mode.toLowerCase().includes("work")){
                 isWork=true
             }
-           
-            let tasks =  prisma.task.findMany({where:{
-                    AND:{id:{
-                        equals: req.params.id,
+            let tasks = await prisma.task.findMany({where:{
+              AND:{
+                parentId:{
+                    equals:req.params.id
+                },
+               isLowFocus:isLowFocus,
+               isWork:isWork,
+               userId:req.user.id
+              }  
+            }})
+            let task = await prisma.task.findMany({take:4,where:{
+                AND:{
+                    parent:{
+                        id:{
+                            equals: req.params.id
+                        }
                     },
                     isLowFocus:isLowFocus,
                     isWork:isWork,
-                    OR:{
-                        userId:{
-                            equals:req.user.id
-                        }
-                        ,
-                        userId:{
-                            equals:null
-                        }
-                    }}}})
-
-            res.json({tasks})
+                    OR: [
+                        { userId: null },
+                        { userId: { isSet: false } }
+                      ]
+                  
+                }
+            }})
+            res.json({tasks:[...tasks,...task]})
         })
         router.get("/low-relax",async (req,res)=>{
             const tasks = await prisma.task.findMany({where:{
+                
                 isLowFocus:true,
                 isWork:false
             }})
