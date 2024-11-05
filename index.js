@@ -40,10 +40,8 @@ app.get('/', async (req, res, next) => {
     // res.status(200).json({message:"Hello World"})
 })
 app.use("/task",taskRoutes(authMiddleware))
-app.use("/user/",userRoutes(authMiddleware))
-// app.use("/user", userRoutes(authMiddleware))
-// app.use("/auth", authRoutes(authMiddleware));
-// app.use("/fork",forkRoutes(authMiddleware))
+app.use("/user",userRoutes(authMiddleware))
+
 setUpPassportLocal(passport);
 app.use(
     session({

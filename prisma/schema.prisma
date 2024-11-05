@@ -45,8 +45,23 @@ model Task {
     user User? @relation(fields: [userId], references: [id])
     parent Task? @relation(name:"children",fields: [parentId], references: [id],onDelete: NoAction, onUpdate: NoAction)
     parentId String? @db.ObjectId
+    categories TaskCategory[]
     tasks Task[]@relation("children")
     updated DateTime? @default(now())
+    created DateTime? @default(now())
+}
+model TaskCategory{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  taskId String @db.ObjectId
+  task Task @relation(fields: [taskId], references: [id])
+  categoryId String @db.ObjectId
+  category Category @relation(fields: [categoryId], references: [id])
+  
+}
+model Category {
+    id String @id @default(auto()) @map("_id") @db.ObjectId
+    name String @default("")
+    tasks TaskCategory[]
     created DateTime? @default(now())
 }
 model UserEquipment {

@@ -11,21 +11,7 @@ const router = express.Router()
 module.exports = function(authMiddleware){
 // router.get("/",async (req, res)=>{
 //   try{
-//   const token = req.headers.authorization.split(" ")[1]
-//   jwt.verify(token, process.env.JWT_SECRET, function(err, decoded) {
-//     if (err) {
-//      res.status(401).json({   name: 'TokenExpiredError',
-//      message: 'jwt expired'})
-//     }else{
-//       res.status(200).json({   
-//         name: 'TokenSuccess',
-//         message: 'Token Acitive'})
-//     }
-//   })
-// }catch(e){
-//   res.json({message:e.message})
-// }
-// })
+
 router.get("/",authMiddleware,async (req, res) => {
   try{
       const token = req.headers.authorization.split(" ")[1]
@@ -45,6 +31,28 @@ router.get("/",authMiddleware,async (req, res) => {
       res.json({message:e.message})
     }
   
+})
+router.get("/task/schedule",authMiddleware,async(req,res)=>{
+
+  const tasks = await prisma.task.findMany({
+    where: {
+      userId:req.user.id,
+      OR:[
+        {NOT:{
+          dueDate:null
+        }},
+        {AND:{
+          NOT:{
+            startTime:null,
+            endTime:null
+          }
+          
+        }}
+      ]
+   
+    },
+  });
+  res.json({tasks})
 })
 router.put("/",authMiddleware,async (req,res)=>{
 
