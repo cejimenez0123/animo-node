@@ -96,6 +96,7 @@ module.exports = function(authMiddleware){
   content:"You're a mindfulness focused task assistant tool. Whose purpose is to breakdown task for novice to tasks."},
   { role: 'user', content: "Break the following tasks :["+task.name +"] this is a description of the task description:["+task.description +"] into steps that fit the following "+
   `json:{
+    step:int,
     name: string,
     link: string,
     description: string,
@@ -104,7 +105,7 @@ module.exports = function(authMiddleware){
     completionDate: DateTime?, 
     isLowFocus: Boolean?
     isWork: Boolean?
-  }. isLowFocus is for if you need high level of engangement to complete the task. Assume the person does not know how to begin with but wants to start now. Name the steps to start quickly. Include no pleasantries or preamble. Only the json.` },],
+  }. isLowFocus is for if you need high level of engangement to complete the task.The description should be a paragraph that does not exceed 120 words, and at most 4 bullet point that are its benefits that are at most 30 words but don't need to be a full sentence.. Assume the person does not know how to begin with but wants to start now. Name the steps to start quickly. Include no pleasantries or preamble. Only the json, not even in markdown formatting. Just the array json.` },],
                                  })
             let json = JSON.parse(completions.choices[0].message.content)
             console.log(json)    
@@ -125,6 +126,39 @@ module.exports = function(authMiddleware){
             tasks = await Promise.all(tasks)
             console.log(tasks)
             res.json({tasks})
+        })
+        router.get("/flow",authMiddleware,async(req,res)=>{
+
+            let userTasks = await prisma.task.findMany({where:{
+                userId:{
+                    equals:req.user.id
+                }
+            }})
+            const nonUserTasks = await prisma.task.findMany({where:{
+                OR:[{ userId: null },
+                    { userId: { isSet: false } }]
+            }})
+            let completions = await together.chat.completions.create({
+                model: "meta-llama/Llama-Vision-Free",
+                messages: [{role:"system",
+                content:
+                "You're a mindfulness focused task assistant"+
+                " tool who does task prioritization for the user."},
+                { role: 'user', content: "I have a 4 hours of time to fill with tasks."+
+                "Select 3 tasks that can belong to the user from this array:"+JSON.stringify(userTasks)
+                +"Select a task will help the user rejuvenate their mind from this array of tasks"+
+                ""+JSON.stringify(nonUserTasks)+"Return an array of 4 of the same type of object."+
+                " \n The current time is"+JSON.stringify(new Date())+" Ideal work times"+
+                "are 40 mins with a break of 30 mins, with a 10 minute buffer. "
+                +"If there are not enough user task include more rejuvinating tasks"+
+                "in your response include no pleasantries or preamble. Do not use markdown only return an array."+
+                "Do not use '\ ' in response. "
+               },],
+                                               })
+                let json = JSON.parse(completions.choices[0].message.content)
+   
+
+            res.json({tasks:json})
         })
         router.get("/energy",async (req,res)=>{
             let low  =   await prisma.task.findFirst({where:{name:"Low Energy"}})
@@ -150,7 +184,11 @@ module.exports = function(authMiddleware){
             
             res.json({tasks:[doNothing,relax,work]})
         })
-    
+    router.patch("/:id",authMiddleware,async (req,res)=>{
+
+        prisma.task.update({where:{I}})
+
+    })
         router.get("/:id/energy/:eng/mode/:mode/public",async (req,res)=>{
             let isLowFocus = true
             let isWork = false

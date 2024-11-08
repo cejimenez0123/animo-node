@@ -4,11 +4,14 @@ const bcrypt = require('bcryptjs');
 const prisma = require("../db");
 const WorkStatusTypeCheck = require('../util/WorkStatusTypeCheck');
 const SedentaryCheck = require('../util/SedentaryCheck');
-
+const {google} = require('googleapis');
+const https = require("https")
+const axios = require("axios")
 // module.exports = function (passport){
 const router = express.Router()
 
-module.exports = function(authMiddleware){
+module.exports = function(
+ { authMiddleware,googleMiddleware}){
 // router.get("/",async (req, res)=>{
 //   try{
 
@@ -32,6 +35,40 @@ router.get("/",authMiddleware,async (req, res) => {
     }
   
 })
+router.get("/google/token/:code",async(req,res)=>{
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    "http://localhost:5173"
+  );
+
+  let data={
+    grant_type:"authorization_code",
+    code: req.params.code,
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    client_secret:process.env.GOOGLE_CLIENT_SECRET,
+    redirect_uri:"http://localhost:3000"
+  }
+  let response = await axios.post("https://accounts.google.com/o/oauth2/token",{
+    data:data
+  })
+
+  // const scopes = [
+  //   'https://www.googleapis.com/auth/userinfo.email',
+  //    'https://www.googleapis.com/auth/userinfo.profile',
+  //   'https://www.googleapis.com/auth/calendar'
+  // ];
+  // const {tokens} = await oauth2Client.getToken(req.params.code)
+  // oauth2Client.setCredentials(tokens);
+  res.json({tokens:response.data})
+})
+// router.get("/google/user/:code",async(req,res)=>{
+//   axios.get('https://www.googleapis.com/userinfo/v2/me', {
+//     headers: {
+//         Authorization: `Bearer ${accessToken}`
+//     }
+// })
+//})
 router.get("/task/schedule",authMiddleware,async(req,res)=>{
 
   const tasks = await prisma.task.findMany({
@@ -54,6 +91,7 @@ router.get("/task/schedule",authMiddleware,async(req,res)=>{
   });
   res.json({tasks})
 })
+
 router.put("/",authMiddleware,async (req,res)=>{
 
   const {preferredName,relationshipStatus,sedentaryLevel,workStatus,dob}=req.body
