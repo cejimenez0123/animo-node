@@ -8,17 +8,14 @@ const Enviroment =require("./Enviroment.js")
 const taskRoutes = require("./routes/task.js")
 const userRoutes = require("./routes/user.js")
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT
 const {setUpPassportGoogle} = require("./middleware/googleMiddleware.js")
 app.use(cors({origin:'http://localhost:5173',credentials:true}))
 app.use((req, res, next) => {
   
   res.setHeader("Access-Control-Allow-Origin", "*")
 res.setHeader("Access-Control-Allow-Credentials", "true");
-res.setHeader("Access-Control-Max-Age", "1800");
-res.setHeader("Access-Control-Allow-Headers", "content-type");
-res.setHeader( "Access-Control-Allow-Methods", "PUT, POST, GET, DELETE, PATCH, OPTIONS" ); 
-  next();
+next();
 })
 
 app.use(bodyParser.urlencoded({ extended: false }))
