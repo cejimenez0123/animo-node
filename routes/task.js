@@ -2,10 +2,38 @@ const express = require('express');
 const prisma = require("../db")
 const router = express.Router()
 const together = require("../together")
-
-
+const {OAuth2Client} = require("google-auth-library")
+const {google}=require("googleapis")
 module.exports = function(authMiddleware){
-
+    router.post('/get-calendar', async (req, res) => {
+        const { creds } = req.body;
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        try {
+            const ticket = await client.verifyIdToken({
+                idToken: creds.credential,
+                audience: creds.client_id
+            });
+            
+            const payload = ticket.getPayload();
+            
+            const oauth2Client = new google.auth.OAuth2();
+            oauth2Client.setCredentials({ access_token: token });
+    
+            const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    
+            const calendarEvents = await calendar.events.list({
+                calendarId: 'primary',
+                timeMin: (new Date()).toISOString(),
+                maxResults: 10,
+                singleEvents: true,
+                orderBy: 'startTime',
+            });
+            console.log(calendarEvents.data.items)
+            res.status(200).json(calendarEvents.data.items);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
         router.post("/",authMiddleware, async (req,res)=>{
             
             try{

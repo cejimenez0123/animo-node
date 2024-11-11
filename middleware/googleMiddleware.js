@@ -10,20 +10,24 @@ function checkIfAuthenticatedGoogle(req, res, next) {
     return res.redirect("/login");
   }
 }
+
 function setUpPassportGoogle(passport){
-passport.use(new GoogleStrategy({
+  passport.use(
+  new GoogleStrategy({
     clientID:     process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:3000/auth/google/callback",
+    callbackURL: "http://localhost:3000/user/google/callback",
     passReqToCallback   : true
   },
  async function(request, accessToken, refreshToken, profile, done) {
   
-
+console.log("Access",accessToken)
+console.log("refresh",refreshToken)
+console.log("profile",profile)
     try{
     let user = await prisma.user.findFirst({where:{
         googleId: profile.id
-    }}).t
+    }})
     if(user==false){
        user= await prisma.user.create({data:{
             email:profile.email,

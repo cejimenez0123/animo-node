@@ -9,6 +9,7 @@ const taskRoutes = require("./routes/task.js")
 const userRoutes = require("./routes/user.js")
 const app = express();
 const PORT = process.env.PORT
+const { GoogleAuth } = require('google-auth-library');
 const {setUpPassportGoogle} = require("./middleware/googleMiddleware.js")
 app.use(cors({origin:'http://localhost:5173',credentials:true}))
 app.use((req, res, next) => {
@@ -19,8 +20,9 @@ next();
 })
 
 app.use(bodyParser.urlencoded({ extended: false }))
-setUpPassportGoogle(passport)
+
 setUpPassportLocal(passport);
+setUpPassportGoogle(passport)
 const logger = (req, _res, next) => {
     const time = new Date().toLocaleTimeString();
     console.log(`${time} ${req.method}: ${req.url}`);
@@ -30,13 +32,9 @@ const logger = (req, _res, next) => {
 app.use(logger);
 const authMiddleware = passport.authenticate('bearer', { session: false });
 const googleMiddleware =  passport.authenticate('google', { scope: ['profile', 'email'] })
-app.get('/auth/google',googleMiddleware)
-app.get('/auth/google/callback', function() {
-  passport.authenticate('google', {
-      successRedirect: '/',
-      failureRedirect: "/signin"
-  });
-});
+
+
+
 app.get('/logout', function (req, res) {
   req.logOut();
   res.redirect('/');

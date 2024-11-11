@@ -4,14 +4,12 @@ const bcrypt = require('bcryptjs');
 const prisma = require("../db");
 const WorkStatusTypeCheck = require('../util/WorkStatusTypeCheck');
 const SedentaryCheck = require('../util/SedentaryCheck');
-const {google} = require('googleapis');
-const https = require("https")
-const axios = require("axios")
-// module.exports = function (passport){
+const{OAuth2Client} = require("google-auth-library")
+// const oAuth2Client = require("../oauth")
 const router = express.Router()
 
 module.exports = function(
- { authMiddleware,googleMiddleware}){
+ { authMiddleware,googleMiddleware,passport}){
 // router.get("/",async (req, res)=>{
 //   try{
 
@@ -35,40 +33,111 @@ router.get("/",authMiddleware,async (req, res) => {
     }
   
 })
-router.get("/google/token/:code",async(req,res)=>{
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    "http://localhost:5173"
+
+router.get("/google/callback", (req, res) => {
+  res.redirect('/');
+})
+
+router.post("/register/google",async(req,res)=>{
+  let {creds} = req.body
+    try {
+      const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        // Verify the token
+  
+        const ticket = await client.verifyIdToken({
+            idToken: creds.credential,
+            audience: creds.client_id
+        });
+        
+        const payload = ticket.getPayload();
+        const userId = payload['sub'];
+        let user = await prisma.user.findFirst({where:{email:payload.email}})
+        if(user){
+          user = await prisma.user.update({where:{id:user.id},data:{
+              googleId:userId
+            }})
+        }else{
+         user = await prisma.user.create({data:{
+            preferredName:payload.given_name,
+            email:payload.email
+            ,googleId:userId,
+              }})
+        }
+        
+      console.log(user)
+        res.status(200).json({ message: 'User authenticated', user});
+    } catch (error) {
+      console.log(error)
+        res.status(401).json({ message: 'User not authenticated', error: error.message });
+    }
+})
+router.post('/auth/google', async (req, res) => {
+
+
+  let {creds} = req.body
+    try {
+      const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        // Verify the token
+  
+        const ticket = await client.verifyIdToken({
+            idToken: creds.credential,
+            audience: creds.client_id
+        });
+        
+        const payload = ticket.getPayload();
+      
+        const userId = payload['sub'];
+       let user = await prisma.user.findFirst({where:{googleId:userId}})
+      if(user==null){
+        throw new Error("No User")
+      }
+        res.status(200).json({ message: 'User authenticated', user});
+    } catch (error) {
+      console.log(error)
+        res.status(401).json({ message: 'User not authenticated', error: error.message });
+    }
+});
+
+router.post('/google',async(req,res)=>{
+
+  const {creds}=req.body
+  const oAuth2Client = new OAuth2Client(
+    keys.web.client_id,
+    keys.web.client_secret,
+    keys.web.redirect_uris[0]
   );
 
-  let data={
-    grant_type:"authorization_code",
-    code: req.params.code,
-    client_id: process.env.GOOGLE_CLIENT_ID,
-    client_secret:process.env.GOOGLE_CLIENT_SECRET,
-    redirect_uri:"http://localhost:3000"
-  }
-  let response = await axios.post("https://accounts.google.com/o/oauth2/token",{
-    data:data
-  })
-
-  // const scopes = [
-  //   'https://www.googleapis.com/auth/userinfo.email',
-  //    'https://www.googleapis.com/auth/userinfo.profile',
-  //   'https://www.googleapis.com/auth/calendar'
-  // ];
-  // const {tokens} = await oauth2Client.getToken(req.params.code)
-  // oauth2Client.setCredentials(tokens);
-  res.json({tokens:response.data})
-})
-// router.get("/google/user/:code",async(req,res)=>{
-//   axios.get('https://www.googleapis.com/userinfo/v2/me', {
-//     headers: {
-//         Authorization: `Bearer ${accessToken}`
+  // Generate the url that will be used for the consent dialog.
+  const authorizeUrl = oAuth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: 'https://www.googleapis.com/auth/userinfo.profile',
+  });
+  console.log("Creds",creds)
+  // let tokens = await oAuth2Client.getToken(creds.client_id)
+  // const client = google.accounts.oauth2.initTokenClient({
+  //   client_id: process.env.GOOGLE_CLIENT_ID,
+  //   scope: ['https://www.googleapis.com/auth/calendar.readonly',
+  //   "https://www.googleapis.com/auth/userinfo.email",
+  //   "https://www.googleapis.com/auth/userinfo.profile"],
+  //   callback: (response) => {
+   
+  //   },
+  // });
+//   console.log("tokens",tokens)
+//   oAuth2Client.on('tokens', (tokens) => {
+    
+//     if (tokens.refresh_token) {
+//       // store the refresh_token in my database!
+//       console.log(tokens.refresh_token);
 //     }
-// })
-//})
+//     console.log(tokens.access_token);
+//   });
+//   const url = `https://dns.googleapis.com/dns/v1/projects/${process.env.GOOGLE_PROJECT_ID}`;
+// const response = await client.request({ url });
+//   res.json({tokens:response})
+ })
+
+
 router.get("/task/schedule",authMiddleware,async(req,res)=>{
 
   const tasks = await prisma.task.findMany({
